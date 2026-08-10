@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procyon AI</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <button id="new-chat-btn"><i class="fas fa-plus"></i> Chat Baru</button>
+      <div class="history-list">
+        <p class="history-title">Hari Ini</p>
+        <div class="history-item"><i class="far fa-message"></i> Percakapan Baru</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <i class="fas fa-star" style="color: #f1c40f;"></i> Procyon AI
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-main">
+      <div class="chat-header-mobile">
+        <button id="menu-btn"><i class="fas fa-bars"></i></button>
+        <h3>Procyon</h3>
+      </div>
+      
+      <div class="chat-container" id="chat-box">
+        <!-- Pesan Default -->
+        <div class="message-wrapper ai">
+          <div class="avatar"><i class="fas fa-star"></i></div>
+          <div class="message-content">
+            Halo! Saya Procyon. Ada yang bisa saya bantu hari ini?
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-section">
+        <div class="input-wrapper">
+          <textarea id="user-input" rows="1" placeholder="Kirim pesan ke Procyon..."></textarea>
+          <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <div class="disclaimer">Procyon dinamai dari salah satu bintang paling terang di langit malam.</div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
