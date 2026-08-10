@@ -1,31 +1,38 @@
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
 
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ error: 'Pesan kosong' });
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: 'Data pesan tidak valid.' });
+    }
 
     try {
-        // Endpoint API Groq
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.AI_API_KEY}` // Masukkan Groq API Key di Vercel Env
+                'Authorization': `Bearer ${process.env.AI_API_KEY}`
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile', // <--- MODEL TERBAIK UNTUK GROQ
+                model: 'llama-3.3-70b-versatile',
                 messages: [
                     { 
                         role: 'system', 
-                        content: 'Kamu adalah Procyon. Nama kamu diambil dari sebuah bintang. Kamu adalah AI yang cerdas, membantu, ringkas, serta andal dalam coding dan jawaban umum. Jangan sebutkan kamu buatan Meta/Groq, cukup identifikasi dirimu sebagai Procyon.' 
+                        content: 'Kamu adalah Procyon. Nama kamu diambil dari sebuah bintang. Kamu adalah AI yang cerdas, andal dalam coding, dan membantu tugas harian secara ringkas dan jelas.' 
                     },
-                    { role: 'user', content: message }
+                    ...messages
                 ]
             })
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Gagal ke API Groq');
+
+        if (!response.ok) {
+            throw new Error(data.error?.message || 'Gagal terhubung ke API Groq');
+        }
 
         res.status(200).json({ reply: data.choices[0].message.content });
     } catch (error) {
