@@ -406,44 +406,43 @@
             askAI(session);
         }
 
-async function askAI(session) {
-    showTypingIndicator();
+        async function askAI(session) {
+            showTypingIndicator();
 
-    try {
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                provider: 'groq',
-                messages: session.messages
-            })
-        });
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: session.messages
+                    })
+                });
 
-        const data = await res.json();
+                const data = await res.json();
 
-        if (!res.ok) {
-            throw new Error(data.error || 'API error');
+                if (!res.ok) {
+                    throw new Error(data.error || 'API error');
+                }
+
+                finishAIReply(
+                    session,
+                    data.reply || '(respons kosong)'
+                );
+
+            } catch (err) {
+                console.error('Procyon API Error:', err);
+
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) indicator.remove();
+
+                finishAIReply(
+                    session,
+                    `**Gagal menghubungi Procyon AI.**\n\n${err.message}`
+                );
+            }
         }
-
-        finishAIReply(
-            session,
-            data.reply || '(respons kosong)'
-        );
-
-    } catch (err) {
-        console.error('Procyon API Error:', err);
-
-        const indicator = document.getElementById('typingIndicator');
-        if (indicator) indicator.remove();
-
-        finishAIReply(
-            session,
-            `**Gagal menghubungi Procyon AI.**\n\n${err.message}`
-        );
-    }
-    }
 
         function showTypingIndicator() {
             const wrap = document.createElement('div');
@@ -592,11 +591,27 @@ async function askAI(session) {
         async function fetchPersonaReply(session, turn, ti, bi) {
             const branch = turn.branches[bi];
             const persona = PERSONAS.find(p => p.id === branch.persona);
+            
+            // Build conversation history for this persona
+            // Include previous turns as context
+            const historyMessages = [];
+            session.multiTurns.slice(0, ti).forEach(prevTurn => {
+                const prevBranch = prevTurn.branches.find(b => b.persona === branch.persona && b.status === 'done');
+                if (prevBranch) {
+                    historyMessages.push({ role: 'user', content: prevTurn.userText });
+                    historyMessages.push({ role: 'assistant', content: prevBranch.content });
+                }
+            });
+            historyMessages.push({ role: 'user', content: turn.userText });
+
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ persona: persona.id, messages: [{ role: 'user', content: turn.userText }] })
+                    body: JSON.stringify({ 
+                        persona: persona.id, 
+                        messages: historyMessages 
+                    })
                 });
                 if (!res.ok) throw new Error('bad response');
                 const data = await res.json();
@@ -618,7 +633,8 @@ async function askAI(session) {
             branch.content = text;
             session.updatedAt = Date.now();
             saveSessions();
-            if (getCurrentSession() && getCurrentSession().id === sessionId && currentMode === 'multi') {
+            const current = getCurrentSession();
+            if (current && current.id === sessionId && currentMode === 'multi') {
                 const scrollBefore = { x: canvasState.x, y: canvasState.y, scale: canvasState.scale };
                 renderCanvas();
                 canvasState.x = scrollBefore.x;
