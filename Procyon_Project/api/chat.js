@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+  // Cek endpoint dari browser
+  if (req.method === "GET") {
+    return res.status(200).json({
+      ok: true,
+      message: "Procyon API aktif"
+    });
+  }
+
+  // Hanya menerima POST untuk chat
   if (req.method !== "POST") {
     return res.status(405).json({
       error: "Method not allowed"
@@ -6,42 +15,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, persona } = req.body || {};
-
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({
-        error: "Messages kosong"
-      });
-    }
-
     const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "GROQ_API_KEY belum dipasang di Vercel"
+        error: "GROQ_API_KEY belum diset di Vercel"
       });
     }
 
-    // System prompt untuk Multi-AI
+    const { messages, persona } = req.body || {};
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({
+        error: "Messages tidak valid"
+      });
+    }
+
+    // Instruksi berbeda untuk mode Multi
     let systemPrompt =
-      "Kamu adalah Procyon, asisten AI yang membantu pengguna dengan jelas, akurat, dan ramah.";
+      "Kamu adalah Procyon, AI assistant yang membantu pengguna dengan jelas, ramah, dan akurat. Gunakan bahasa Indonesia kecuali pengguna meminta bahasa lain.";
 
     if (persona === "nova") {
-      systemPrompt =
-        "Kamu adalah Nova, AI yang cepat dan ringkas. Jawab langsung ke inti dengan jelas.";
+      systemPrompt +=
+        " Jawablah dengan cepat, ringkas, dan langsung ke inti.";
     }
 
     if (persona === "lyra") {
-      systemPrompt =
-        "Kamu adalah Lyra, AI yang kreatif dan eksploratif. Berikan ide dan sudut pandang yang menarik.";
+      systemPrompt +=
+        " Jawablah secara kreatif, eksploratif, dan berikan beberapa sudut pandang jika cocok.";
     }
 
     if (persona === "orion") {
-      systemPrompt =
-        "Kamu adalah Orion, AI yang detail dan analitis. Jawab secara terstruktur dan logis.";
+      systemPrompt +=
+        " Jawablah secara detail, terstruktur, dan analitis.";
     }
 
-    const finalMessages = [
+    const groqMessages = [
       {
         role: "system",
         content: systemPrompt
@@ -59,51 +68,36 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: finalMessages,
+          messages: groqMessages,
           temperature: 0.7,
-          max_tokens: 2048
+          max_completion_tokens: 2048
         })
       }
     );
 
     const data = await response.json();
 
-    // Error dari Groq
     if (!response.ok) {
-      console.error("Groq Error:", data);
-
-      if (response.status === 429) {
-        return res.status(429).json({
-          error: "Rate limit Groq tercapai. Coba lagi beberapa saat."
-        });
-      }
+      console.error("Groq error:", data);
 
       return res.status(response.status).json({
-        error:
-          data?.error?.message ||
-          "Groq API mengalami error"
+        error: data?.error?.message || "Groq API error"
       });
     }
 
-    const reply = data?.choices?.[0]?.message?.content;
-
-    if (!reply) {
-      return res.status(500).json({
-        error: "Groq tidak memberikan respons"
-      });
-    }
+    const reply =
+      data?.choices?.[0]?.message?.content || "(respons kosong)";
 
     return res.status(200).json({
-      reply: reply,
-      model: data.model || "llama-3.3-70b-versatile",
-      usage: data.usage || null
+      reply
     });
 
   } catch (error) {
-    console.error("Server Error:", error);
+    console.error("API error:", error);
 
     return res.status(500).json({
-      error: "Terjadi kesalahan pada server"
+      error: "Terjadi kesalahan pada server",
+      detail: error.message
     });
   }
 }
