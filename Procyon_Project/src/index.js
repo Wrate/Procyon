@@ -13,7 +13,12 @@ const openai = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
   apiKey: process.env.GROQ_API_KEY, // Set di Environment Variables Vercel
 });
-const MODEL_NAME = 'llama-3.3-70b-versatile';
+
+// PENTING: 'llama-3.3-70b-versatile' sudah di-deprecate oleh Groq
+// (diumumkan 17 Juni 2026, dimatikan per Agustus 2026).
+// Model pengganti resmi rekomendasi Groq:
+const MODEL_NAME = 'openai/gpt-oss-120b';
+// Alternatif lain yang juga direkomendasikan Groq: 'qwen/qwen3.6-27b'
 
 // ============================================================
 // PILIHAN 2: MENGGUNAKAN OPENROUTER (Uncomment jika pakai ini)
@@ -27,7 +32,7 @@ const openai = new OpenAI({
     'X-Title': 'Procyon AI', // Opsional
   },
 });
-const MODEL_NAME = 'meta-llama/llama-3.3-70b-instruct'; 
+const MODEL_NAME = 'meta-llama/llama-3.3-70b-instruct';
 */
 
 const PERSONA_PROMPTS = {
@@ -63,9 +68,16 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: completion.choices[0].message.content });
 
   } catch (error) {
-    console.error('Error:', error);
+    // Log lebih detail biar gampang debug kalau error lagi (mis. model_decommissioned,
+    // invalid_api_key, rate_limit_exceeded, dll)
+    console.error('Error:', error?.response?.data || error?.message || error);
     return res.status(500).json({ error: 'Terjadi kesalahan pada server AI.' });
   }
+});
+
+// Health check sederhana, berguna buat mastiin server hidup tanpa nge-hit Groq
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', model: MODEL_NAME });
 });
 
 if (process.env.NODE_ENV !== 'production') {
