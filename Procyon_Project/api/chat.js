@@ -1,5 +1,13 @@
 export default async function handler(req, res) {
-  // Cek endpoint dari browser
+  // CORS preflight
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // Health check
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
@@ -7,54 +15,37 @@ export default async function handler(req, res) {
     });
   }
 
-  // Hanya menerima POST untuk chat
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed"
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const apiKey = process.env.GROQ_API_KEY;
-
     if (!apiKey) {
-      return res.status(500).json({
-        error: "GROQ_API_KEY belum diset di Vercel"
-      });
+      return res.status(500).json({ error: "GROQ_API_KEY belum diset" });
     }
 
     const { messages, persona } = req.body || {};
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({
-        error: "Messages tidak valid"
-      });
+      return res.status(400).json({ error: "Messages tidak valid" });
     }
 
-    // Instruksi berbeda untuk mode Multi
+    const personaInstructions = {
+      nova: "Jawablah dengan cepat, ringkas, dan langsung ke inti.",
+      lyra: "Jawablah secara kreatif, eksploratif, dan berikan beberapa sudut pandang jika cocok.",
+      orion: "Jawablah secara detail, terstruktur, dan analitis."
+    };
+
     let systemPrompt =
       "Kamu adalah Procyon, AI assistant yang membantu pengguna dengan jelas, ramah, dan akurat. Gunakan bahasa Indonesia kecuali pengguna meminta bahasa lain.";
 
-    if (persona === "nova") {
-      systemPrompt +=
-        " Jawablah dengan cepat, ringkas, dan langsung ke inti.";
-    }
-
-    if (persona === "lyra") {
-      systemPrompt +=
-        " Jawablah secara kreatif, eksploratif, dan berikan beberapa sudut pandang jika cocok.";
-    }
-
-    if (persona === "orion") {
-      systemPrompt +=
-        " Jawablah secara detail, terstruktur, dan analitis.";
+    if (persona && personaInstructions[persona]) {
+      systemPrompt += " " + personaInstructions[persona];
     }
 
     const groqMessages = [
-      {
-        role: "system",
-        content: systemPrompt
-      },
+      { role: "system", content: systemPrompt },
       ...messages
     ];
 
@@ -79,22 +70,17 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       console.error("Groq error:", data);
-
       return res.status(response.status).json({
         error: data?.error?.message || "Groq API error"
       });
     }
 
-    const reply =
-      data?.choices?.[0]?.message?.content || "(respons kosong)";
+    const reply = data?.choices?.[0]?.message?.content || "(respons kosong)";
 
-    return res.status(200).json({
-      reply
-    });
+    return res.status(200).json({ reply });
 
   } catch (error) {
     console.error("API error:", error);
-
     return res.status(500).json({
       error: "Terjadi kesalahan pada server",
       detail: error.message
