@@ -406,27 +406,44 @@
             askAI(session);
         }
 
-        async function askAI(session) {
-            showTypingIndicator();
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: session.messages })
-                });
-                if (!res.ok) throw new Error('bad response');
-                const data = await res.json();
-                finishAIReply(session, data.reply || '(respons kosong)');
-            } catch (err) {
-                await wait(700 + Math.random() * 700);
-                const lastUser = [...session.messages].reverse().find(m => m.role === 'user');
-                finishAIReply(session, simulateReply(lastUser ? lastUser.content : ''));
-            }
+async function askAI(session) {
+    showTypingIndicator();
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                provider: 'groq',
+                messages: session.messages
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'API error');
         }
 
-        function simulateReply(userText) {
-            return `Ini masih **respons simulasi** ya — belum tersambung ke API asli.\n\nKamu bilang: *${userText}*\n\nSambungkan endpoint \`/api/chat\` di \`askAI()\` untuk balasan sungguhan.`;
-        }
+        finishAIReply(
+            session,
+            data.reply || '(respons kosong)'
+        );
+
+    } catch (err) {
+        console.error('Procyon API Error:', err);
+
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+
+        finishAIReply(
+            session,
+            `**Gagal menghubungi Procyon AI.**\n\n${err.message}`
+        );
+    }
+    }
 
         function showTypingIndicator() {
             const wrap = document.createElement('div');
